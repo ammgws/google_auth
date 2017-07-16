@@ -8,9 +8,9 @@ import requests
 
 
 class GoogleAuth(object):
-    def __init__(self, config_path, scope, service='General'):
+    def __init__(self, config_filepath, scope, service='General'):
         # Set instance variables
-        self.config_path = config_path
+        self.config_filepath = config_filepath
         self.oauth2_scope = scope
         self.service = service
         self.access_token = None
@@ -18,19 +18,18 @@ class GoogleAuth(object):
 
         # Get OAUTH info from config file
         self.config = ConfigParser()
-        self.config.read(self.config_path)
+        self.config.read(self.config_filepath)
         self.client_id = self.config.get(self.service, 'client_id')
         self.client_secret = self.config.get(self.service, 'client_secret')
         self.refresh_token = self.config.get(self.service, 'refresh_token')
 
         # Get latest OAUTH2 info from Google
-        google_info = requests.get('https://accounts.google.com/.well-known/openid-configuration')
-        google_params = google_info.json()
-        self.authorize_url = google_params.get('authorization_endpoint')
-        self.token_url = google_params.get('token_endpoint')
-        self.userinfo_url = google_params.get('userinfo_endpoint')
+        oauth_params = requests.get('https://accounts.google.com/.well-known/openid-configuration').json()
+        self.authorize_url = oauth_params.get('authorization_endpoint')
+        self.token_url = oauth_params.get('token_endpoint')
+        self.userinfo_url = oauth_params.get('userinfo_endpoint')
 
-    def google_authenticate(self):
+    def authenticate(self):
         """ Get access token. Note that Google access tokens expire in 3600 seconds."""
         # Authenticate with Google and get access token.
         if not self.refresh_token:
@@ -46,24 +45,24 @@ class GoogleAuth(object):
                           self.refresh_token,
                           type(self.refresh_token))
             # Get authorisation code from user
-            auth_code = self.google_authorisation_request()
+            auth_code = self.authorisation_request()
             # Request access token using authorisation code
-            self.google_token_request(auth_code)
+            self.token_request(auth_code)
             # Save refresh token for next login attempt or application startup
             self.config.set(self.service, 'refresh_token', self.refresh_token)
-            with open(self.config_path, 'w') as config_file:
-                self.config.write(config_file)
+            with open(self.config_filepath, 'w') as file:
+                self.config.write(file)
         elif (self.access_token is None) or (dt.datetime.now() > self.token_expiry):
             # Use existing refresh token to get new access token.
             logging.debug('Using refresh token to generate new access token.')
             # Request access token using existing refresh token
-            self.google_token_request()
+            self.token_request()
         else:
             # Access token is still valid, no need to generate new access token.
             logging.debug('Access token is still valid - no need to regenerate.')
             return
 
-    def google_authorisation_request(self):
+    def authorisation_request(self):
         """Start authorisation flow to get new access + refresh token."""
 
         # Start by getting authorization_code for given scope(s).
@@ -84,7 +83,7 @@ class GoogleAuth(object):
         auth_code = input("Enter auth code from the above link: ")
         return auth_code
 
-    def google_token_request(self, auth_code=None):
+    def token_request(self, auth_code=None):
         """Make an access token request and get new token(s).
            If auth_code is passed then both access and refresh tokens will be
            requested, otherwise the existing refresh token is used to request
@@ -125,7 +124,7 @@ class GoogleAuth(object):
         self.token_expiry = dt.datetime.now() + dt.timedelta(seconds=int(values['expires_in']))
         logging.info('Access token expires on %s', self.token_expiry.strftime("%Y/%m/%d %H:%M"))
 
-    def google_get_email(self):
+    def get_email(self):
         """Get client's email address."""
         authorization_header = {"Authorization": "OAuth %s" % self.access_token}
         resp = requests.get(self.userinfo_url, headers=authorization_header)
