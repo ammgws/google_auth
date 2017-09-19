@@ -126,7 +126,7 @@ class GoogleAuth(object):
 
     def get_email(self):
         """Get client's email address."""
-        authorization_header = {"Authorization": "OAuth %s" % self.access_token}
+        authorization_header = {"Authorization": "Bearer %s" % self.access_token}
         resp = requests.get(self.userinfo_url, headers=authorization_header)
         # If request is successful then Google returns values as a JSON array
         values = resp.json()
