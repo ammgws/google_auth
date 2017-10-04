@@ -27,15 +27,14 @@ class GoogleAuth(object):
         self.access_token = None
         self.token_expiry = None
 
-        # Get latest OAUTH2 info from Google
+        # Get latest OAUTH2 info from Google instead of hardcoding.
         oauth_params = requests.get('https://accounts.google.com/.well-known/openid-configuration').json()
         self.authorize_url = oauth_params.get('authorization_endpoint')
         self.token_url = oauth_params.get('token_endpoint')
         self.userinfo_url = oauth_params.get('userinfo_endpoint')
 
     def authenticate(self):
-        """ Get access token. Note that Google access tokens expire in 3600 seconds."""
-        # Authenticate with Google and get access token.
+        """Get access token. Note that Google access tokens expire in 3600 seconds."""
         if not self.refresh_token:
             # If no refresh token is found in config file, then need to start
             # new authorization flow and get access token that way.
@@ -44,28 +43,18 @@ class GoogleAuth(object):
             # invalidates the oldest token without warning.
             # (Limit does not apply to service accounts.)
             # https://developers.google.com/accounts/docs/OAuth2#expiration
-            logging.debug('No refresh token in config file (val = %s of type %s). '
-                          'Need to generate new token.',
-                          self.refresh_token,
-                          type(self.refresh_token))
-            # Get authorisation code from user
+            logging.debug('No refresh token, generating new token.')
             auth_code = self.authorisation_request()
-            # Request access token using authorisation code
             self.token_request(auth_code)
         elif (self.access_token is None) or (dt.datetime.now() > self.token_expiry):
-            # Use existing refresh token to get new access token.
             logging.debug('Using refresh token to generate new access token.')
-            # Request access token using existing refresh token
             self.token_request()
         else:
-            # Access token is still valid, no need to generate new access token.
             logging.debug('Access token is still valid - no need to regenerate.')
             return
 
     def authorisation_request(self):
         """Start authorisation flow to get new access + refresh token."""
-
-        # Start by getting authorization_code for given scope(s).
         oauth2_login_url = '{0}?{1}'.format(
             self.authorize_url,
             urlencode(dict(
@@ -77,8 +66,11 @@ class GoogleAuth(object):
             ))
         )
 
-        # Print auth URL and wait for user to grant access and
-        # input authentication code into the console.
+        # 'urn:ietf:wg:oauth:2.0:oob' signals to the Google Authorization
+        # Server that the authorization code should be returned in the
+        # title bar of the browser, with the page text prompting the user
+        # to copy the code and paste it in the application.
+
         print(oauth2_login_url)
         auth_code = input("Enter auth code from the above link: ")
         return auth_code
@@ -89,28 +81,23 @@ class GoogleAuth(object):
            requested, otherwise the existing refresh token is used to request
            an access token.
 
-           Update the following class variables:
+           Updates the following class variables:
             access_token
             refresh_token
             token_expiry
-           """
-        # Build request parameters. Order doesn't seem to matter, hence using dict.
+        """
         token_request_data = {
             'client_id': self.client_id,
             'client_secret': self.client_secret,
         }
-        if auth_code is None:
+        if not auth_code:
             # Use existing refresh token to get new access token.
             token_request_data['refresh_token'] = self.refresh_token
             token_request_data['grant_type'] = 'refresh_token'
         else:
-            # Request new access and refresh token.
+            # Request new access and refresh tokens.
             token_request_data['code'] = auth_code
             token_request_data['grant_type'] = 'authorization_code'
-            # 'urn:ietf:wg:oauth:2.0:oob' signals to the Google Authorization
-            # Server that the authorization code should be returned in the
-            # title bar of the browser, with the page text prompting the user
-            # to copy the code and paste it in the application.
             token_request_data['redirect_uri'] = 'urn:ietf:wg:oauth:2.0:oob'
             token_request_data['access_type'] = 'offline'
 
