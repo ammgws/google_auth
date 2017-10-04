@@ -1,27 +1,27 @@
 # Standard library
 import datetime as dt
 import logging
-from configparser import ConfigParser
+import os.path
 from urllib.parse import urlencode
 # Third party imports
 import requests
 
 
 class GoogleAuth(object):
-    def __init__(self, config_filepath, scope, service='General'):
-        # Set instance variables
-        self.config_filepath = config_filepath
-        self.oauth2_scope = scope
-        self.service = service
-        self.access_token = None
-        self.token_expiry = None  # access token expiry time
+    def __init__(self, client_id, client_secret, scopes, refresh_token_file=None):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.scopes = ' '.join(scopes)
 
-        # Get OAUTH info from config file
-        self.config = ConfigParser()
-        self.config.read(self.config_filepath)
-        self.client_id = self.config.get(self.service, 'client_id')
-        self.client_secret = self.config.get(self.service, 'client_secret')
-        self.refresh_token = self.config.get(self.service, 'refresh_token')
+        self.refresh_token_file = refresh_token_file
+        if os.path.isfile(self.refresh_token_file):
+            with open(self.refresh_token_file, 'r') as file:
+                    self.refresh_token = file.read()
+        else:
+            self.refresh_token = None
+
+        self.access_token = None
+        self.token_expiry = None
 
         # Get latest OAUTH2 info from Google
         oauth_params = requests.get('https://accounts.google.com/.well-known/openid-configuration').json()
