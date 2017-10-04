@@ -7,6 +7,10 @@ from urllib.parse import urlencode
 import requests
 
 
+class TokenRequestError(Exception):
+    pass
+
+
 class GoogleAuth(object):
     def __init__(self, client_id, client_secret, scopes, refresh_token_file=None):
         self.client_id = client_id
@@ -48,10 +52,6 @@ class GoogleAuth(object):
             auth_code = self.authorisation_request()
             # Request access token using authorisation code
             self.token_request(auth_code)
-            # Save refresh token for next login attempt or application startup
-            self.config.set(self.service, 'refresh_token', self.refresh_token)
-            with open(self.config_filepath, 'w') as file:
-                self.config.write(file)
         elif (self.access_token is None) or (dt.datetime.now() > self.token_expiry):
             # Use existing refresh token to get new access token.
             logging.debug('Using refresh token to generate new access token.')
@@ -70,7 +70,7 @@ class GoogleAuth(object):
             self.authorize_url,
             urlencode(dict(
                 client_id=self.client_id,
-                scope=self.oauth2_scope,
+                scope=self.scopes,
                 redirect_uri='urn:ietf:wg:oauth:2.0:oob',
                 response_type='code',
                 access_type='offline',
@@ -114,20 +114,29 @@ class GoogleAuth(object):
             token_request_data['redirect_uri'] = 'urn:ietf:wg:oauth:2.0:oob'
             token_request_data['access_type'] = 'offline'
 
-        # Make token request to Google.
-        resp = requests.post(self.token_url, data=token_request_data)
-        # If request is successful then Google returns values as a JSON array
-        values = resp.json()
-        self.access_token = values['access_token']
-        if auth_code:  # Need to save value of new refresh token
-            self.refresh_token = values['refresh_token']
-        self.token_expiry = dt.datetime.now() + dt.timedelta(seconds=int(values['expires_in']))
-        logging.info('Access token expires on %s', self.token_expiry.strftime("%Y/%m/%d %H:%M"))
+        r = requests.post(self.token_url, data=token_request_data)
+        if r.status_code == 200:
+            values = r.json()
+            self.access_token = values['access_token']
+            self.token_expiry = dt.datetime.now() + dt.timedelta(seconds=int(values['expires_in']))
+            logging.info('Access token expires on %s', self.token_expiry.strftime("%Y/%m/%d %H:%M"))
+
+            if auth_code:
+                # Save refresh token for next login attempt or application startup.
+                self.refresh_token = values['refresh_token']
+                with open(self.refresh_token_file, 'w') as file:
+                    file.write(self.refresh_token)
+        else:
+            # TODO
+            raise TokenRequestError
 
     def get_email(self):
         """Get client's email address."""
-        authorization_header = {"Authorization": "Bearer %s" % self.access_token}
-        resp = requests.get(self.userinfo_url, headers=authorization_header)
-        # If request is successful then Google returns values as a JSON array
-        values = resp.json()
-        return values['email']
+        authorization_header = {'Authorization': 'Bearer %s' % self.access_token}
+        r = requests.get(self.userinfo_url, headers=authorization_header)
+        if r.status_code == 200:
+            email = r.json()['email']
+        else:
+            # TODO
+            raise Exception
+        return email
