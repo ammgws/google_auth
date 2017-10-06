@@ -3,7 +3,7 @@ import datetime as dt
 import logging
 import os.path
 from urllib.parse import urlencode
-# Third party imports
+# Third party
 import requests
 
 
@@ -27,7 +27,7 @@ class GoogleAuth(object):
         self.access_token = None
         self.token_expiry = None
 
-        # Get latest OAUTH2 info from Google instead of hardcoding.
+        # Get latest OAUTH2 endpoints from Google instead of hard-coding.
         oauth_params = requests.get('https://accounts.google.com/.well-known/openid-configuration').json()
         self.authorize_url = oauth_params.get('authorization_endpoint')
         self.token_url = oauth_params.get('token_endpoint')
@@ -72,7 +72,7 @@ class GoogleAuth(object):
         # to copy the code and paste it in the application.
 
         print(oauth2_login_url)
-        auth_code = input("Enter auth code from the above link: ")
+        auth_code = input('Enter auth code from the above link:')
         return auth_code
 
     def token_request(self, auth_code=None):
@@ -106,7 +106,7 @@ class GoogleAuth(object):
             values = r.json()
             self.access_token = values['access_token']
             self.token_expiry = dt.datetime.now() + dt.timedelta(seconds=int(values['expires_in']))
-            logging.info('Access token expires on %s', self.token_expiry.strftime("%Y/%m/%d %H:%M"))
+            logging.info('Access token expires on %s.', self.token_expiry.strftime('%Y/%m/%d %H:%M'))
 
             if auth_code:
                 # Save refresh token for next login attempt or application startup.
