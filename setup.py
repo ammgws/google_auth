@@ -8,7 +8,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='google_auth',
-    version='0.1.3',
+    version='0.1.4',
     description='Class for authenticating with Google',
     long_description=long_description,
     url='https://github.com/ammgws/google_auth',
