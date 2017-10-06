@@ -18,9 +18,9 @@ class GoogleAuth(object):
         self.scopes = ' '.join(scopes)
 
         self.refresh_token_file = refresh_token_file
-        if os.path.isfile(self.refresh_token_file):
-            with open(self.refresh_token_file, 'r') as file:
-                    self.refresh_token = file.read()
+        if refresh_token_file and os.path.isfile(self.refresh_token_file):
+            with open(self.refresh_token_file) as file:
+                self.refresh_token = file.read()
         else:
             self.refresh_token = None
 
