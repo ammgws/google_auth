@@ -33,6 +33,10 @@ class GoogleAuth(object):
         self.token_url = oauth_params.get('token_endpoint')
         self.userinfo_url = oauth_params.get('userinfo_endpoint')
 
+
+    def __repr__(self):
+        return '<Authenticated: {}>'.format(self.authenticated)
+
     def authenticate(self):
         """Get access token. Note that Google access tokens expire in 3600 seconds."""
         if not self.refresh_token:
