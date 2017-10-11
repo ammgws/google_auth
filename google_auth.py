@@ -114,11 +114,7 @@ class GoogleAuth(object):
         self.token = Token.from_file(self.token_file)
 
         # Get latest OAUTH2 endpoints from Google instead of hard-coding.
-        oauth_params = requests.get('https://accounts.google.com/.well-known/openid-configuration').json()
-        self.authorize_url = oauth_params.get('authorization_endpoint')
-        self.token_url = oauth_params.get('token_endpoint')
-        self.userinfo_url = oauth_params.get('userinfo_endpoint')
-
+        self.oauth_params = requests.get('https://accounts.google.com/.well-known/openid-configuration').json()
 
     def __repr__(self):
         return '<{}({}.{})>'.format(
@@ -229,7 +225,7 @@ class GoogleAuth(object):
             token_request_data['redirect_uri'] = 'urn:ietf:wg:oauth:2.0:oob'
             token_request_data['access_type'] = 'offline'
 
-        r = requests.post(self.token_url, data=token_request_data)
+        r = requests.post(self.oauth_params.get('token_endpoint'), data=token_request_data)
         if r.status_code == 200:
             values = r.json()
             self.access_token = values['access_token']
@@ -253,5 +249,18 @@ class GoogleAuth(object):
             email = r.json()['email']
         else:
             # TODO
-            raise Exception
+            pass
+
+    def get_email(self):
+        """Get client's email address."""
+        if self.authenticated:
+            authorization_header = {'Authorization': 'Bearer %s' % self.token.access_token}
+            r = requests.get(self.oauth_params.get('userinfo_endpoint'), headers=authorization_header)
+            if r.status_code == 200:
+                email = r.json()['email']
+            else:
+                # TODO
+                raise Exception
+        else:
+            email = None
         return email
