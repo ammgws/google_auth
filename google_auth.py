@@ -100,19 +100,18 @@ class GoogleAuth(object):
         self.client_id = client_id
         self.client_secret = client_secret
 
-        self.refresh_token_file = refresh_token_file
-        if refresh_token_file and os.path.isfile(self.refresh_token_file):
-            with open(self.refresh_token_file) as file:
-                self.refresh_token = file.read()
         # Allow a string to be passed instead of throwing an exception.
         if isinstance(scopes, str):
             self.scopes = scopes
         else:
-            self.refresh_token = None
             self.scopes = ' '.join(scopes)
 
-        self.access_token = None
-        self.token_expiry = None
+        if token_file and os.path.isfile(token_file):
+            self.token_file = token_file
+        elif token_file is None:
+            self.token_file = mkstemp(prefix='token_')[1]
+            logging.warning('Token will not persist across instances.')
+        self.token = Token.from_file(self.token_file)
 
         # Get latest OAUTH2 endpoints from Google instead of hard-coding.
         oauth_params = requests.get('https://accounts.google.com/.well-known/openid-configuration').json()
@@ -125,14 +124,14 @@ class GoogleAuth(object):
         return '<Authenticated: {}>'.format(self.authenticated)
 
     def authenticate(self):
-        """Get access token. Note that Google access tokens expire in 3600 seconds."""
-        if not self.refresh_token:
-            # If no refresh token is found in config file, then need to start
-            # new authorization flow and get access token that way.
-            # Note: Google has limit of 25 refresh tokens per user account per
-            # client. When limit reached, creating a new token automatically
-            # invalidates the oldest token without warning.
-            # (Limit does not apply to service accounts.)
+        """Get access token.
+
+        Note that Google access tokens expire in 3600 seconds.
+        """
+        if not self.token.refresh_token:
+            # If no refresh token exists then need to start new authorization flow and get access token that way.
+            # Note: Google has limit of 50 refresh tokens per user account per client.
+            # When limit reached, creating a new token automatically invalidates the oldest token without warning.
             # https://developers.google.com/accounts/docs/OAuth2#expiration
             logging.debug('No refresh token, generating new token.')
             auth_code = self.authorisation_request()
@@ -155,6 +154,40 @@ class GoogleAuth(object):
                 response_type='code',
                 access_type='offline',
             ))
+     @property
+     def authenticated(self):
+         return self.token.access_token and not self.token.is_expired
+ 
+    @property
+    def access_token(self):
+        return self.token.access_token
+
+    @property
+    def refresh_token(self):
+        return self.token.refresh_token
+
+    @property
+    def token_expiry(self):
+        return self.token.expiry
+
+    @staticmethod
+    def prompt(url):
+        """Override this method to provide custom prompts."""
+        print(url)
+        auth_code = input('Enter auth code from the above link:')
+        return auth_code
+
+    def generate_auth_url(self):
+        """Generate an authorisation URL."""
+        url = '{0}?{1}'.format(
+                self.oauth_params.get('authorization_endpoint'),
+                urlencode(dict(
+                        client_id=self.client_id,
+                        scope=self.scopes,
+                        redirect_uri='urn:ietf:wg:oauth:2.0:oob',
+                        response_type='code',
+                        access_type='offline',
+                ))
         )
 
         # 'urn:ietf:wg:oauth:2.0:oob' signals to the Google Authorization
@@ -183,7 +216,7 @@ class GoogleAuth(object):
         }
         if not auth_code:
             # Use existing refresh token to get new access token.
-            token_request_data['refresh_token'] = self.refresh_token
+            token_request_data['refresh_token'] = self.token.refresh_token
             token_request_data['grant_type'] = 'refresh_token'
         else:
             # Request new access and refresh tokens.
