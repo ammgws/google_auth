@@ -76,7 +76,27 @@ class Token(object):
 
 
 class GoogleAuth(object):
-    def __init__(self, client_id, client_secret, scopes, refresh_token_file=None):
+    """Helper class for getting OAUTH access tokens for Google services.
+
+    :param client_id: OAuth 2.0 client ID obtained from Google API Console.
+    :param client_secret: OAuth 2.0 client secret obtained from Google API Console.
+    :param scopes: List of OAuth 2.0 scopes to access. See https://developers.google.com/identity/protocols/googlescopes.
+    :param refresh_token_file (optional): Path to a file to write refresh token info. Must be writeable.
+    :return: :class:`GoogleAuth <Authenticated>` object
+    :rtype: google_auth.GoogleAuth
+
+    Usage::
+
+      >>> from google_auth import GoogleAuth
+      >>> oauth = GoogleAuth(client_id, client_secret, ['https://www.googleapis.com/auth/userinfo.email',])
+      >>> oauth.authenticate()
+      <GoogleAuth(Authenticated: True. Expiry: 2017/10/09 19:29)>
+
+    Google Reference Docs:
+        https://developers.google.com/identity/protocols/OAuth2WebServer
+    """
+
+    def __init__(self, client_id, client_secret, scopes, token_file=None):
         self.client_id = client_id
         self.client_secret = client_secret
         self.scopes = ' '.join(scopes)
