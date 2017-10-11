@@ -230,10 +230,6 @@ class GoogleAuth(object):
             # TODO
             raise RequestError
 
-    def get_email(self):
-        """Get client's email address."""
-        authorization_header = {'Authorization': 'Bearer %s' % self.access_token}
-        r = requests.get(self.userinfo_url, headers=authorization_header)
     def revoke_token(self):
         r = requests.get(self.oauth_params.get('revocation_endpoint'), params={'token': self.token.access_token})
         if r.status_code == 200:
