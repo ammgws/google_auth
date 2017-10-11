@@ -121,7 +121,11 @@ class GoogleAuth(object):
 
 
     def __repr__(self):
-        return '<Authenticated: {}>'.format(self.authenticated)
+        return '<{}({}.{})>'.format(
+                self.__class__.__name__,
+                'Authenticated' if self.authenticated else 'Unauthenticated',
+                ' Expiry: {}'.format(self.token.expiry.strftime('%Y/%m/%d %H:%M')) if self.token.expiry else '',
+        )
 
     def authenticate(self):
         """Get access token.
