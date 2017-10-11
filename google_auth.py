@@ -134,30 +134,20 @@ class GoogleAuth(object):
             # When limit reached, creating a new token automatically invalidates the oldest token without warning.
             # https://developers.google.com/accounts/docs/OAuth2#expiration
             logging.debug('No refresh token, generating new token.')
-            auth_code = self.authorisation_request()
-            self.token_request(auth_code)
-        elif (self.access_token is None) or (dt.datetime.now() > self.token_expiry):
+            url = self.generate_auth_url()
+            auth_code = self.prompt(url)
+            self._token_request(auth_code)
+        elif not self.authenticated:
             logging.debug('Using refresh token to generate new access token.')
-            self.token_request()
+            self._token_request()
         else:
             logging.debug('Access token is still valid - no need to regenerate.')
             return
 
-    def authorisation_request(self):
-        """Start authorisation flow to get new access + refresh token."""
-        oauth2_login_url = '{0}?{1}'.format(
-            self.authorize_url,
-            urlencode(dict(
-                client_id=self.client_id,
-                scope=self.scopes,
-                redirect_uri='urn:ietf:wg:oauth:2.0:oob',
-                response_type='code',
-                access_type='offline',
-            ))
-     @property
-     def authenticated(self):
-         return self.token.access_token and not self.token.is_expired
- 
+    @property
+    def authenticated(self):
+        return self.token.access_token and not self.token.is_expired
+
     @property
     def access_token(self):
         return self.token.access_token
@@ -195,11 +185,9 @@ class GoogleAuth(object):
         # title bar of the browser, with the page text prompting the user
         # to copy the code and paste it in the application.
 
-        print(oauth2_login_url)
-        auth_code = input('Enter auth code from the above link:')
-        return auth_code
+        return url
 
-    def token_request(self, auth_code=None):
+    def _token_request(self, auth_code=None):
         """Make an access token request and get new token(s).
            If auth_code is passed then both access and refresh tokens will be
            requested, otherwise the existing refresh token is used to request
@@ -228,25 +216,25 @@ class GoogleAuth(object):
         r = requests.post(self.oauth_params.get('token_endpoint'), data=token_request_data)
         if r.status_code == 200:
             values = r.json()
-            self.access_token = values['access_token']
-            self.token_expiry = dt.datetime.now() + dt.timedelta(seconds=int(values['expires_in']))
-            logging.info('Access token expires on %s.', self.token_expiry.strftime('%Y/%m/%d %H:%M'))
+            self.token.access_token = values['access_token']
+            self.token.expiry = dt.datetime.now() + dt.timedelta(seconds=int(values['expires_in']))
+            logging.info('Access token expires on %s.', self.token.expiry.strftime('%Y/%m/%d %H:%M'))
 
             if auth_code:
                 # Save refresh token for next login attempt or application startup.
-                self.refresh_token = values['refresh_token']
-                with open(self.refresh_token_file, 'w') as file:
-                    file.write(self.refresh_token)
+                self.token.refresh_token = values['refresh_token']
+                self.token.save_to_file()
         else:
             # TODO
-            raise TokenRequestError
+            raise RequestError
 
     def get_email(self):
         """Get client's email address."""
         authorization_header = {'Authorization': 'Bearer %s' % self.access_token}
         r = requests.get(self.userinfo_url, headers=authorization_header)
         if r.status_code == 200:
-            email = r.json()['email']
+            self.token.reset()
+            self.token.save_to_file()
         else:
             # TODO
             pass
