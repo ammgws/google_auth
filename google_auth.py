@@ -99,14 +99,17 @@ class GoogleAuth(object):
     def __init__(self, client_id, client_secret, scopes, token_file=None):
         self.client_id = client_id
         self.client_secret = client_secret
-        self.scopes = ' '.join(scopes)
 
         self.refresh_token_file = refresh_token_file
         if refresh_token_file and os.path.isfile(self.refresh_token_file):
             with open(self.refresh_token_file) as file:
                 self.refresh_token = file.read()
+        # Allow a string to be passed instead of throwing an exception.
+        if isinstance(scopes, str):
+            self.scopes = scopes
         else:
             self.refresh_token = None
+            self.scopes = ' '.join(scopes)
 
         self.access_token = None
         self.token_expiry = None
