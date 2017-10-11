@@ -12,6 +12,11 @@ class GoogleAuthException(Exception):
     pass
 
 
+class RequestError(GoogleAuthException):
+    """A request error occurred."""
+    pass
+
+
 class GoogleAuth(object):
     def __init__(self, client_id, client_secret, scopes, refresh_token_file=None):
         self.client_id = client_id
