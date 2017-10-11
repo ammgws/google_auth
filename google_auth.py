@@ -17,6 +17,64 @@ class RequestError(GoogleAuthException):
     pass
 
 
+class Token(object):
+    def __init__(self, access_token='', refresh_token='', **kwargs):
+        self.access_token = access_token
+        self.refresh_token = refresh_token
+        self.expiry = kwargs.get('expiry', None)
+        self.file = kwargs.get('file', None)
+
+    def __repr__(self):
+        return '<{}({})>'.format(
+                self.__class__.__name__,
+                'No token' if not self.access_token else 'Expires {}'.format(self.expiry_str),
+        )
+
+    @property
+    def is_expired(self):
+        return self.expiry is not None and dt.datetime.now() > self.expiry
+
+    @property
+    def expiry_str(self):
+        return self.expiry.isoformat(sep=' ', timespec='seconds')
+
+    @classmethod
+    def from_file(cls, file):
+        with open(file) as f:
+            try:
+                values = json.load(f)
+            except json.decoder.JSONDecodeError:
+                values = {
+                    'access_token': '',
+                    'refresh_token': '',
+                    'expiry': None,
+                }
+
+        try:
+            expiry_dt = dt.datetime.strptime(values['expiry'], '%Y-%m-%d %H:%M:%S')
+        except TypeError:
+            expiry_dt = None
+
+        return cls(access_token=values['access_token'],
+                   refresh_token=values['refresh_token'],
+                   expiry=expiry_dt,
+                   file=file,
+                   )
+
+    def reset(self):
+        self.access_token = ''
+        self.refresh_token = ''
+        self.expiry = None
+
+    def save_to_file(self):
+        with open(self.file, 'w') as f:
+            json.dump({
+                          'access_token': self.access_token,
+                          'refresh_token': self.refresh_token,
+                          'expiry': self.expiry_str,
+                      }, f)
+
+
 class GoogleAuth(object):
     def __init__(self, client_id, client_secret, scopes, refresh_token_file=None):
         self.client_id = client_id
