@@ -7,7 +7,8 @@ from urllib.parse import urlencode
 import requests
 
 
-class TokenRequestError(Exception):
+class GoogleAuthException(Exception):
+    """Base exception for GoogleAuth."""
     pass
 
 
