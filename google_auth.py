@@ -252,6 +252,7 @@ class GoogleAuth(object):
                 self.token.save_to_file()
         else:
             # TODO
+            print(r.content)
             raise RequestError
 
     def revoke_token(self):
