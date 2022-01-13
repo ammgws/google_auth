@@ -252,7 +252,7 @@ class GoogleAuth(object):
                 self.token.save_to_file()
         else:
             # TODO
-            print(r.content)
+            logging.error(r.content)
             raise RequestError
 
     def revoke_token(self):
@@ -280,6 +280,7 @@ class GoogleAuth(object):
                 email = r.json()["email"]
             else:
                 # TODO
+                logging.error(r.content)
                 raise Exception
         else:
             email = None
