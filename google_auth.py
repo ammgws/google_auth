@@ -222,11 +222,11 @@ class GoogleAuth(object):
             "client_secret": self.client_secret,
         }
         if not auth_code:
-            # Use existing refresh token to get new access token.
+            logging.info("Using existing refresh token to get new access token.")
             token_request_data["refresh_token"] = self.token.refresh_token
             token_request_data["grant_type"] = "refresh_token"
         else:
-            # Request new access and refresh tokens.
+            logging.info("Requesting new access and refresh tokens.")
             token_request_data["code"] = auth_code
             token_request_data["grant_type"] = "authorization_code"
             token_request_data["redirect_uri"] = "urn:ietf:wg:oauth:2.0:oob"
