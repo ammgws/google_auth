@@ -249,7 +249,9 @@ class GoogleAuth(object):
             if auth_code:
                 # Save refresh token for next login attempt or application startup.
                 self.token.refresh_token = values["refresh_token"]
-                self.token.save_to_file()
+
+            # Update with new refresh token or access token info
+            self.token.save_to_file()
         else:
             # TODO
             logging.error(r.content)
